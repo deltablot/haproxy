@@ -20,70 +20,59 @@
 #include "51Degrees.h"
 #include <stdlib.h>
 
-int fiftyoneDegreesGetDeviceOffset(
-	fiftyoneDegreesDataSet *dataSet,
-	const char *userAgent) {
-    return 0;
+int fiftyoneDegreesGetDeviceOffset(fiftyoneDegreesDataSet *dataSet,
+                                   const char *userAgent) {
+  return 0;
 }
 
-const char** fiftyoneDegreesGetRequiredPropertiesNames(
-	fiftyoneDegreesDataSet *dataSet) {
-    return NULL;
+const char **
+fiftyoneDegreesGetRequiredPropertiesNames(fiftyoneDegreesDataSet *dataSet) {
+  return NULL;
 }
 
-int fiftyoneDegreesGetRequiredPropertiesCount(
-	fiftyoneDegreesDataSet *dataSet) {
-    return 0;
+int fiftyoneDegreesGetRequiredPropertiesCount(fiftyoneDegreesDataSet *dataSet) {
+  return 0;
 }
 
 int fiftyoneDegreesGetValueFromOffsets(
-	fiftyoneDegreesDataSet *dataSet,
-	fiftyoneDegreesDeviceOffsets* deviceOffsets,
-	int requiredPropertyIndex,
-	char* values,
-	int size) {
-    return 0;
+    fiftyoneDegreesDataSet *dataSet,
+    fiftyoneDegreesDeviceOffsets *deviceOffsets, int requiredPropertyIndex,
+    char *values, int size) {
+  return 0;
 }
 
-static fiftyoneDegreesDeviceOffset dummyOffset = { 0, 0, "dummy-user-agent" };
+static fiftyoneDegreesDeviceOffset dummyOffset = {0, 0, "dummy-user-agent"};
 
-static fiftyoneDegreesDeviceOffsets dummyOffsets = { 1, &dummyOffset, NULL };
+static fiftyoneDegreesDeviceOffsets dummyOffsets = {1, &dummyOffset, NULL};
 
-fiftyoneDegreesDeviceOffsets* fiftyoneDegreesCreateDeviceOffsets(
-	fiftyoneDegreesDataSet *dataSet) {
-    return &dummyOffsets;
+fiftyoneDegreesDeviceOffsets *
+fiftyoneDegreesCreateDeviceOffsets(fiftyoneDegreesDataSet *dataSet) {
+  return &dummyOffsets;
 }
 
-void fiftyoneDegreesFreeDeviceOffsets(
-	fiftyoneDegreesDeviceOffsets* offsets) {
-    return;
+void fiftyoneDegreesFreeDeviceOffsets(fiftyoneDegreesDeviceOffsets *offsets) {
+  return;
 }
 
-int fiftyoneDegreesGetHttpHeaderCount(
-	fiftyoneDegreesDataSet *dataSet) {
-    return 0;
+int fiftyoneDegreesGetHttpHeaderCount(fiftyoneDegreesDataSet *dataSet) {
+  return 0;
 }
 
-int fiftyoneDegreesGetHttpHeaderNameOffset(
-	fiftyoneDegreesDataSet *dataSet,
-	int httpHeaderIndex) {
-    return 0;
+int fiftyoneDegreesGetHttpHeaderNameOffset(fiftyoneDegreesDataSet *dataSet,
+                                           int httpHeaderIndex) {
+  return 0;
 }
 
-const char* fiftyoneDegreesGetHttpHeaderNamePointer(
-	fiftyoneDegreesDataSet *dataSet,
-	int httpHeaderIndex) {
-    return "dummy-header-name";
+const char *
+fiftyoneDegreesGetHttpHeaderNamePointer(fiftyoneDegreesDataSet *dataSet,
+                                        int httpHeaderIndex) {
+  return "dummy-header-name";
 }
 
 fiftyoneDegreesDataSetInitStatus fiftyoneDegreesInitWithPropertyArray(
-	const char* fileName,
-	fiftyoneDegreesDataSet *dataSet,
-	const char** properties,
-	int propertyCount) {
-    return DATA_SET_INIT_STATUS_SUCCESS;
+    const char *fileName, fiftyoneDegreesDataSet *dataSet,
+    const char **properties, int propertyCount) {
+  return DATA_SET_INIT_STATUS_SUCCESS;
 }
 
-void fiftyoneDegreesDataSetFree(fiftyoneDegreesDataSet *dataSet) {
-    return;
-}
+void fiftyoneDegreesDataSetFree(fiftyoneDegreesDataSet *dataSet) { return; }

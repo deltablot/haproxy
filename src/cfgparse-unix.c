@@ -25,8 +25,8 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
-#include <netinet/tcp.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include <haproxy/api.h>
 #include <haproxy/arg.h>
@@ -39,82 +39,86 @@
 #include <haproxy/tools.h>
 
 /* parse the "mode" bind keyword */
-static int bind_parse_mode(char **args, int cur_arg, struct proxy *px, struct bind_conf *conf, char **err)
-{
-	char *endptr;
+static int bind_parse_mode(char **args, int cur_arg, struct proxy *px,
+                           struct bind_conf *conf, char **err) {
+  char *endptr;
 
-	conf->settings.ux.mode = strtol(args[cur_arg + 1], &endptr, 8);
+  conf->settings.ux.mode = strtol(args[cur_arg + 1], &endptr, 8);
 
-	if (!*args[cur_arg + 1] || *endptr) {
-		memprintf(err, "'%s' : missing or invalid mode '%s' (octal integer expected)", args[cur_arg], args[cur_arg + 1]);
-		return ERR_ALERT | ERR_FATAL;
-	}
+  if (!*args[cur_arg + 1] || *endptr) {
+    memprintf(err,
+              "'%s' : missing or invalid mode '%s' (octal integer expected)",
+              args[cur_arg], args[cur_arg + 1]);
+    return ERR_ALERT | ERR_FATAL;
+  }
 
-	return 0;
+  return 0;
 }
 
 /* parse the "gid" bind keyword */
-static int bind_parse_gid(char **args, int cur_arg, struct proxy *px, struct bind_conf *conf, char **err)
-{
-	if (!*args[cur_arg + 1]) {
-		memprintf(err, "'%s' : missing value", args[cur_arg]);
-		return ERR_ALERT | ERR_FATAL;
-	}
+static int bind_parse_gid(char **args, int cur_arg, struct proxy *px,
+                          struct bind_conf *conf, char **err) {
+  if (!*args[cur_arg + 1]) {
+    memprintf(err, "'%s' : missing value", args[cur_arg]);
+    return ERR_ALERT | ERR_FATAL;
+  }
 
-	conf->settings.ux.gid = atol(args[cur_arg + 1]);
-	return 0;
+  conf->settings.ux.gid = atol(args[cur_arg + 1]);
+  return 0;
 }
 
 /* parse the "group" bind keyword */
-static int bind_parse_group(char **args, int cur_arg, struct proxy *px, struct bind_conf *conf, char **err)
-{
-	struct group *group;
+static int bind_parse_group(char **args, int cur_arg, struct proxy *px,
+                            struct bind_conf *conf, char **err) {
+  struct group *group;
 
-	if (!*args[cur_arg + 1]) {
-		memprintf(err, "'%s' : missing group name", args[cur_arg]);
-		return ERR_ALERT | ERR_FATAL;
-	}
+  if (!*args[cur_arg + 1]) {
+    memprintf(err, "'%s' : missing group name", args[cur_arg]);
+    return ERR_ALERT | ERR_FATAL;
+  }
 
-	group = getgrnam(args[cur_arg + 1]);
-	if (!group) {
-		memprintf(err, "'%s' : unknown group name '%s'", args[cur_arg], args[cur_arg + 1]);
-		return ERR_ALERT | ERR_FATAL;
-	}
+  group = getgrnam(args[cur_arg + 1]);
+  if (!group) {
+    memprintf(err, "'%s' : unknown group name '%s'", args[cur_arg],
+              args[cur_arg + 1]);
+    return ERR_ALERT | ERR_FATAL;
+  }
 
-	conf->settings.ux.gid = group->gr_gid;
-	return 0;
+  conf->settings.ux.gid = group->gr_gid;
+  return 0;
 }
 
 /* parse the "uid" bind keyword */
-static int bind_parse_uid(char **args, int cur_arg, struct proxy *px, struct bind_conf *conf, char **err)
-{
-	if (!*args[cur_arg + 1]) {
-		memprintf(err, "'%s' : missing value", args[cur_arg]);
-		return ERR_ALERT | ERR_FATAL;
-	}
+static int bind_parse_uid(char **args, int cur_arg, struct proxy *px,
+                          struct bind_conf *conf, char **err) {
+  if (!*args[cur_arg + 1]) {
+    memprintf(err, "'%s' : missing value", args[cur_arg]);
+    return ERR_ALERT | ERR_FATAL;
+  }
 
-	conf->settings.ux.uid = atol(args[cur_arg + 1]);
-	return 0;
+  conf->settings.ux.uid = atol(args[cur_arg + 1]);
+  return 0;
 }
 
 /* parse the "user" bind keyword */
-static int bind_parse_user(char **args, int cur_arg, struct proxy *px, struct bind_conf *conf, char **err)
-{
-	struct passwd *user;
+static int bind_parse_user(char **args, int cur_arg, struct proxy *px,
+                           struct bind_conf *conf, char **err) {
+  struct passwd *user;
 
-	if (!*args[cur_arg + 1]) {
-		memprintf(err, "'%s' : missing user name", args[cur_arg]);
-		return ERR_ALERT | ERR_FATAL;
-	}
+  if (!*args[cur_arg + 1]) {
+    memprintf(err, "'%s' : missing user name", args[cur_arg]);
+    return ERR_ALERT | ERR_FATAL;
+  }
 
-	user = getpwnam(args[cur_arg + 1]);
-	if (!user) {
-		memprintf(err, "'%s' : unknown user name '%s'", args[cur_arg], args[cur_arg + 1]);
-		return ERR_ALERT | ERR_FATAL;
-	}
+  user = getpwnam(args[cur_arg + 1]);
+  if (!user) {
+    memprintf(err, "'%s' : unknown user name '%s'", args[cur_arg],
+              args[cur_arg + 1]);
+    return ERR_ALERT | ERR_FATAL;
+  }
 
-	conf->settings.ux.uid = user->pw_uid;
-	return 0;
+  conf->settings.ux.uid = user->pw_uid;
+  return 0;
 }
 
 /* Note: must not be declared <const> as its list will be overwritten.
@@ -124,13 +128,18 @@ static int bind_parse_user(char **args, int cur_arg, struct proxy *px, struct bi
  * the config parser can report an appropriate error when a known keyword was
  * not enabled.
  */
-static struct bind_kw_list bind_kws = { "UNIX", { }, {
-	{ "gid",   bind_parse_gid,   1 },      /* set the socket's gid */
-	{ "group", bind_parse_group, 1 },      /* set the socket's gid from the group name */
-	{ "mode",  bind_parse_mode,  1 },      /* set the socket's mode (eg: 0644)*/
-	{ "uid",   bind_parse_uid,   1 },      /* set the socket's uid */
-	{ "user",  bind_parse_user,  1 },      /* set the socket's uid from the user name */
-	{ NULL, NULL, 0 },
-}};
+static struct bind_kw_list bind_kws = {
+    "UNIX",
+    {},
+    {
+        {"gid", bind_parse_gid, 1}, /* set the socket's gid */
+        {"group", bind_parse_group,
+         1}, /* set the socket's gid from the group name */
+        {"mode", bind_parse_mode, 1}, /* set the socket's mode (eg: 0644)*/
+        {"uid", bind_parse_uid, 1},   /* set the socket's uid */
+        {"user", bind_parse_user,
+         1}, /* set the socket's uid from the user name */
+        {NULL, NULL, 0},
+    }};
 
 INITCALL1(STG_REGISTER, bind_register_keywords, &bind_kws);

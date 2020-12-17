@@ -27,88 +27,87 @@
  * next_event_delay() instead which do not have the flapping correction, so
  * that even frequencies as low as one event/period are properly handled.
  */
-unsigned int read_freq_ctr(struct freq_ctr *ctr)
-{
-	unsigned int curr, past, _curr, _past;
-	unsigned int age, curr_sec, _curr_sec;
+unsigned int read_freq_ctr(struct freq_ctr *ctr) {
+  unsigned int curr, past, _curr, _past;
+  unsigned int age, curr_sec, _curr_sec;
 
-	while (1) {
-		_curr = ctr->curr_ctr;
-		__ha_compiler_barrier();
-		_past = ctr->prev_ctr;
-		__ha_compiler_barrier();
-		_curr_sec = ctr->curr_sec;
-		__ha_compiler_barrier();
-		if (_curr_sec & 0x80000000)
-			continue;
-		curr = ctr->curr_ctr;
-		__ha_compiler_barrier();
-		past = ctr->prev_ctr;
-		__ha_compiler_barrier();
-		curr_sec = ctr->curr_sec;
-		__ha_compiler_barrier();
-		if (_curr == curr && _past == past && _curr_sec == curr_sec)
-			break;
-	}
+  while (1) {
+    _curr = ctr->curr_ctr;
+    __ha_compiler_barrier();
+    _past = ctr->prev_ctr;
+    __ha_compiler_barrier();
+    _curr_sec = ctr->curr_sec;
+    __ha_compiler_barrier();
+    if (_curr_sec & 0x80000000)
+      continue;
+    curr = ctr->curr_ctr;
+    __ha_compiler_barrier();
+    past = ctr->prev_ctr;
+    __ha_compiler_barrier();
+    curr_sec = ctr->curr_sec;
+    __ha_compiler_barrier();
+    if (_curr == curr && _past == past && _curr_sec == curr_sec)
+      break;
+  }
 
-	age = now.tv_sec - curr_sec;
-	if (unlikely(age > 1))
-		return 0;
+  age = now.tv_sec - curr_sec;
+  if (unlikely(age > 1))
+    return 0;
 
-	if (unlikely(age)) {
-		past = curr;
-		curr = 0;
-	}
+  if (unlikely(age)) {
+    past = curr;
+    curr = 0;
+  }
 
-	if (past <= 1 && !curr)
-		return past; /* very low rate, avoid flapping */
+  if (past <= 1 && !curr)
+    return past; /* very low rate, avoid flapping */
 
-	return curr + mul32hi(past, ms_left_scaled);
+  return curr + mul32hi(past, ms_left_scaled);
 }
 
 /* returns the number of remaining events that can occur on this freq counter
  * while respecting <freq> and taking into account that <pend> events are
  * already known to be pending. Returns 0 if limit was reached.
  */
-unsigned int freq_ctr_remain(struct freq_ctr *ctr, unsigned int freq, unsigned int pend)
-{
-	unsigned int curr, past, _curr, _past;
-	unsigned int age, curr_sec, _curr_sec;
+unsigned int freq_ctr_remain(struct freq_ctr *ctr, unsigned int freq,
+                             unsigned int pend) {
+  unsigned int curr, past, _curr, _past;
+  unsigned int age, curr_sec, _curr_sec;
 
-	while (1) {
-		_curr = ctr->curr_ctr;
-		__ha_compiler_barrier();
-		_past = ctr->prev_ctr;
-		__ha_compiler_barrier();
-		_curr_sec = ctr->curr_sec;
-		__ha_compiler_barrier();
-		if (_curr_sec & 0x80000000)
-			continue;
-		curr = ctr->curr_ctr;
-		__ha_compiler_barrier();
-		past = ctr->prev_ctr;
-		__ha_compiler_barrier();
-		curr_sec = ctr->curr_sec;
-		__ha_compiler_barrier();
-		if (_curr == curr && _past == past && _curr_sec == curr_sec)
-			break;
-	}
+  while (1) {
+    _curr = ctr->curr_ctr;
+    __ha_compiler_barrier();
+    _past = ctr->prev_ctr;
+    __ha_compiler_barrier();
+    _curr_sec = ctr->curr_sec;
+    __ha_compiler_barrier();
+    if (_curr_sec & 0x80000000)
+      continue;
+    curr = ctr->curr_ctr;
+    __ha_compiler_barrier();
+    past = ctr->prev_ctr;
+    __ha_compiler_barrier();
+    curr_sec = ctr->curr_sec;
+    __ha_compiler_barrier();
+    if (_curr == curr && _past == past && _curr_sec == curr_sec)
+      break;
+  }
 
-	age = now.tv_sec - curr_sec;
-	if (unlikely(age > 1))
-		curr = 0;
-	else {
-		if (unlikely(age == 1)) {
-			past = curr;
-			curr = 0;
-		}
-		curr += mul32hi(past, ms_left_scaled);
-	}
-	curr += pend;
+  age = now.tv_sec - curr_sec;
+  if (unlikely(age > 1))
+    curr = 0;
+  else {
+    if (unlikely(age == 1)) {
+      past = curr;
+      curr = 0;
+    }
+    curr += mul32hi(past, ms_left_scaled);
+  }
+  curr += pend;
 
-	if (curr >= freq)
-		return 0;
-	return freq - curr;
+  if (curr >= freq)
+    return 0;
+  return freq - curr;
 }
 
 /* return the expected wait time in ms before the next event may occur,
@@ -117,47 +116,47 @@ unsigned int freq_ctr_remain(struct freq_ctr *ctr, unsigned int freq, unsigned i
  * time, which will be rounded down 1ms for better accuracy, with a minimum
  * of one ms.
  */
-unsigned int next_event_delay(struct freq_ctr *ctr, unsigned int freq, unsigned int pend)
-{
-	unsigned int curr, past, _curr, _past;
-	unsigned int wait, age, curr_sec, _curr_sec;
+unsigned int next_event_delay(struct freq_ctr *ctr, unsigned int freq,
+                              unsigned int pend) {
+  unsigned int curr, past, _curr, _past;
+  unsigned int wait, age, curr_sec, _curr_sec;
 
-	while (1) {
-		_curr = ctr->curr_ctr;
-		__ha_compiler_barrier();
-		_past = ctr->prev_ctr;
-		__ha_compiler_barrier();
-		_curr_sec = ctr->curr_sec;
-		__ha_compiler_barrier();
-		if (_curr_sec & 0x80000000)
-			continue;
-		curr = ctr->curr_ctr;
-		__ha_compiler_barrier();
-		past = ctr->prev_ctr;
-		__ha_compiler_barrier();
-		curr_sec = ctr->curr_sec;
-		__ha_compiler_barrier();
-		if (_curr == curr && _past == past && _curr_sec == curr_sec)
-			break;
-	}
+  while (1) {
+    _curr = ctr->curr_ctr;
+    __ha_compiler_barrier();
+    _past = ctr->prev_ctr;
+    __ha_compiler_barrier();
+    _curr_sec = ctr->curr_sec;
+    __ha_compiler_barrier();
+    if (_curr_sec & 0x80000000)
+      continue;
+    curr = ctr->curr_ctr;
+    __ha_compiler_barrier();
+    past = ctr->prev_ctr;
+    __ha_compiler_barrier();
+    curr_sec = ctr->curr_sec;
+    __ha_compiler_barrier();
+    if (_curr == curr && _past == past && _curr_sec == curr_sec)
+      break;
+  }
 
-	age = now.tv_sec - curr_sec;
-	if (unlikely(age > 1))
-		curr = 0;
-	else {
-		if (unlikely(age == 1)) {
-			past = curr;
-			curr = 0;
-		}
-		curr += mul32hi(past, ms_left_scaled);
-	}
-	curr += pend;
+  age = now.tv_sec - curr_sec;
+  if (unlikely(age > 1))
+    curr = 0;
+  else {
+    if (unlikely(age == 1)) {
+      past = curr;
+      curr = 0;
+    }
+    curr += mul32hi(past, ms_left_scaled);
+  }
+  curr += pend;
 
-	if (curr < freq)
-		return 0;
+  if (curr < freq)
+    return 0;
 
-	wait = 999 / curr;
-	return MAX(wait, 1);
+  wait = 999 / curr;
+  return MAX(wait, 1);
 }
 
 /* Reads a frequency counter taking history into account for missing time in
@@ -169,105 +168,105 @@ unsigned int next_event_delay(struct freq_ctr *ctr, unsigned int freq, unsigned 
  * handle the case where the rate is between 0 and 1 in order to avoid flapping
  * while waiting for the next event.
  *
- * For immediate limit checking, it's recommended to use freq_ctr_period_remain()
- * instead which does not have the flapping correction, so that even frequencies
- * as low as one event/period are properly handled.
+ * For immediate limit checking, it's recommended to use
+ * freq_ctr_period_remain() instead which does not have the flapping correction,
+ * so that even frequencies as low as one event/period are properly handled.
  *
- * For measures over a 1-second period, it's better to use the implicit functions
- * above.
+ * For measures over a 1-second period, it's better to use the implicit
+ * functions above.
  */
-unsigned int read_freq_ctr_period(struct freq_ctr_period *ctr, unsigned int period)
-{
-	unsigned int _curr, _past, curr, past;
-	unsigned int remain, _curr_tick, curr_tick;
+unsigned int read_freq_ctr_period(struct freq_ctr_period *ctr,
+                                  unsigned int period) {
+  unsigned int _curr, _past, curr, past;
+  unsigned int remain, _curr_tick, curr_tick;
 
-	while (1) {
-		_curr = ctr->curr_ctr;
-		__ha_compiler_barrier();
-		_past = ctr->prev_ctr;
-		__ha_compiler_barrier();
-		_curr_tick = ctr->curr_tick;
-		__ha_compiler_barrier();
-		if (_curr_tick & 0x1)
-			continue;
-		curr = ctr->curr_ctr;
-		__ha_compiler_barrier();
-		past = ctr->prev_ctr;
-		__ha_compiler_barrier();
-		curr_tick = ctr->curr_tick;
-		__ha_compiler_barrier();
-		if (_curr == curr && _past == past && _curr_tick == curr_tick)
-			break;
-	};
+  while (1) {
+    _curr = ctr->curr_ctr;
+    __ha_compiler_barrier();
+    _past = ctr->prev_ctr;
+    __ha_compiler_barrier();
+    _curr_tick = ctr->curr_tick;
+    __ha_compiler_barrier();
+    if (_curr_tick & 0x1)
+      continue;
+    curr = ctr->curr_ctr;
+    __ha_compiler_barrier();
+    past = ctr->prev_ctr;
+    __ha_compiler_barrier();
+    curr_tick = ctr->curr_tick;
+    __ha_compiler_barrier();
+    if (_curr == curr && _past == past && _curr_tick == curr_tick)
+      break;
+  };
 
-	remain = curr_tick + period - now_ms;
-	if (unlikely((int)remain < 0)) {
-		/* We're past the first period, check if we can still report a
-		 * part of last period or if we're too far away.
-		 */
-		remain += period;
-		if ((int)remain < 0)
-			return 0;
-		past = curr;
-		curr = 0;
-	}
-	if (past <= 1 && !curr)
-		return past; /* very low rate, avoid flapping */
+  remain = curr_tick + period - now_ms;
+  if (unlikely((int)remain < 0)) {
+    /* We're past the first period, check if we can still report a
+     * part of last period or if we're too far away.
+     */
+    remain += period;
+    if ((int)remain < 0)
+      return 0;
+    past = curr;
+    curr = 0;
+  }
+  if (past <= 1 && !curr)
+    return past; /* very low rate, avoid flapping */
 
-	curr += div64_32((unsigned long long)past * remain, period);
-	return curr;
+  curr += div64_32((unsigned long long)past * remain, period);
+  return curr;
 }
 
 /* Returns the number of remaining events that can occur on this freq counter
  * while respecting <freq> events per period, and taking into account that
- * <pend> events are already known to be pending. Returns 0 if limit was reached.
+ * <pend> events are already known to be pending. Returns 0 if limit was
+ * reached.
  */
-unsigned int freq_ctr_remain_period(struct freq_ctr_period *ctr, unsigned int period,
-				    unsigned int freq, unsigned int pend)
-{
-	unsigned int _curr, _past, curr, past;
-	unsigned int remain, _curr_tick, curr_tick;
+unsigned int freq_ctr_remain_period(struct freq_ctr_period *ctr,
+                                    unsigned int period, unsigned int freq,
+                                    unsigned int pend) {
+  unsigned int _curr, _past, curr, past;
+  unsigned int remain, _curr_tick, curr_tick;
 
-	while (1) {
-		_curr = ctr->curr_ctr;
-		__ha_compiler_barrier();
-		_past = ctr->prev_ctr;
-		__ha_compiler_barrier();
-		_curr_tick = ctr->curr_tick;
-		__ha_compiler_barrier();
-		if (_curr_tick & 0x1)
-			continue;
-		curr = ctr->curr_ctr;
-		__ha_compiler_barrier();
-		past = ctr->prev_ctr;
-		__ha_compiler_barrier();
-		curr_tick = ctr->curr_tick;
-		__ha_compiler_barrier();
-		if (_curr == curr && _past == past && _curr_tick == curr_tick)
-			break;
-	};
+  while (1) {
+    _curr = ctr->curr_ctr;
+    __ha_compiler_barrier();
+    _past = ctr->prev_ctr;
+    __ha_compiler_barrier();
+    _curr_tick = ctr->curr_tick;
+    __ha_compiler_barrier();
+    if (_curr_tick & 0x1)
+      continue;
+    curr = ctr->curr_ctr;
+    __ha_compiler_barrier();
+    past = ctr->prev_ctr;
+    __ha_compiler_barrier();
+    curr_tick = ctr->curr_tick;
+    __ha_compiler_barrier();
+    if (_curr == curr && _past == past && _curr_tick == curr_tick)
+      break;
+  };
 
-	remain = curr_tick + period - now_ms;
-	if (likely((int)remain < 0)) {
-		/* We're past the first period, check if we can still report a
-		 * part of last period or if we're too far away.
-		 */
-		past = curr;
-		curr = 0;
-		remain += period;
-		if ((int)remain < 0)
-			past = 0;
-	}
-	if (likely(past))
-		curr += div64_32((unsigned long long)past * remain, period);
+  remain = curr_tick + period - now_ms;
+  if (likely((int)remain < 0)) {
+    /* We're past the first period, check if we can still report a
+     * part of last period or if we're too far away.
+     */
+    past = curr;
+    curr = 0;
+    remain += period;
+    if ((int)remain < 0)
+      past = 0;
+  }
+  if (likely(past))
+    curr += div64_32((unsigned long long)past * remain, period);
 
-	curr += pend;
-	freq -= curr;
-	if ((int)freq < 0)
-		freq = 0;
-	return freq;
+  curr += pend;
+  freq -= curr;
+  if ((int)freq < 0)
+    freq = 0;
+  return freq;
 }
-
 
 /*
  * Local variables:

@@ -26,9 +26,8 @@
  * It's the caller's responsibility to use this function only on trees which
  * only contain zero-terminated strings. If none can be found, return NULL.
  */
-struct ebpt_node *ebis_lookup(struct eb_root *root, const char *x)
-{
-	return __ebis_lookup(root, x);
+struct ebpt_node *ebis_lookup(struct eb_root *root, const char *x) {
+  return __ebis_lookup(root, x);
 }
 
 /* Insert ebpt_node <new> into subtree starting at node root <root>. Only
@@ -36,7 +35,6 @@ struct ebpt_node *ebis_lookup(struct eb_root *root, const char *x)
  * returned. If root->b[EB_RGHT]==1, the tree may only contain unique keys. The
  * caller is responsible for properly terminating the key with a zero.
  */
-struct ebpt_node *ebis_insert(struct eb_root *root, struct ebpt_node *new)
-{
-	return __ebis_insert(root, new);
+struct ebpt_node *ebis_insert(struct eb_root *root, struct ebpt_node *new) {
+  return __ebis_insert(root, new);
 }

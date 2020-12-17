@@ -10,4 +10,3 @@ main() {
   write(1, "\r\n\r\n", 4);
   write(1, "DATA\r\n", 6);
 }
-

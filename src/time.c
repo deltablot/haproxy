@@ -10,70 +10,75 @@
  *
  */
 
-#include <unistd.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include <haproxy/api.h>
 #include <haproxy/time.h>
 #include <haproxy/tools.h>
 
-THREAD_LOCAL unsigned int   ms_left_scaled;  /* milliseconds left for current second (0..2^32-1) */
-THREAD_LOCAL unsigned int   now_ms;          /* internal date in milliseconds (may wrap) */
-THREAD_LOCAL unsigned int   samp_time;       /* total elapsed time over current sample */
-THREAD_LOCAL unsigned int   idle_time;       /* total idle time over current sample */
-THREAD_LOCAL struct timeval now;             /* internal date is a monotonic function of real clock */
-THREAD_LOCAL struct timeval date;            /* the real current date */
-struct timeval start_date;      /* the process's start date */
-THREAD_LOCAL struct timeval before_poll;     /* system date before calling poll() */
-THREAD_LOCAL struct timeval after_poll;      /* system date after leaving poll() */
+THREAD_LOCAL unsigned int
+    ms_left_scaled; /* milliseconds left for current second (0..2^32-1) */
+THREAD_LOCAL unsigned int now_ms; /* internal date in milliseconds (may wrap) */
+THREAD_LOCAL unsigned int
+    samp_time; /* total elapsed time over current sample */
+THREAD_LOCAL unsigned int idle_time; /* total idle time over current sample */
+THREAD_LOCAL struct timeval
+    now; /* internal date is a monotonic function of real clock */
+THREAD_LOCAL struct timeval date;        /* the real current date */
+struct timeval start_date;               /* the process's start date */
+THREAD_LOCAL struct timeval before_poll; /* system date before calling poll() */
+THREAD_LOCAL struct timeval after_poll;  /* system date after leaving poll() */
 
-static THREAD_LOCAL struct timeval tv_offset;  /* per-thread time ofsset relative to global time */
-static volatile unsigned long long global_now; /* common date between all threads (32:32) */
+static THREAD_LOCAL struct timeval
+    tv_offset; /* per-thread time ofsset relative to global time */
+static volatile unsigned long long
+    global_now; /* common date between all threads (32:32) */
 
-static THREAD_LOCAL unsigned int iso_time_sec;     /* last iso time value for this thread */
-static THREAD_LOCAL char         iso_time_str[34]; /* ISO time representation of gettimeofday() */
+static THREAD_LOCAL unsigned int
+    iso_time_sec; /* last iso time value for this thread */
+static THREAD_LOCAL char
+    iso_time_str[34]; /* ISO time representation of gettimeofday() */
 
 /*
  * adds <ms> ms to <from>, set the result to <tv> and returns a pointer <tv>
  */
-struct timeval *_tv_ms_add(struct timeval *tv, const struct timeval *from, int ms)
-{
-	tv->tv_usec = from->tv_usec + (ms % 1000) * 1000;
-	tv->tv_sec  = from->tv_sec  + (ms / 1000);
-	while (tv->tv_usec >= 1000000) {
-		tv->tv_usec -= 1000000;
-		tv->tv_sec++;
-	}
-	return tv;
+struct timeval *_tv_ms_add(struct timeval *tv, const struct timeval *from,
+                           int ms) {
+  tv->tv_usec = from->tv_usec + (ms % 1000) * 1000;
+  tv->tv_sec = from->tv_sec + (ms / 1000);
+  while (tv->tv_usec >= 1000000) {
+    tv->tv_usec -= 1000000;
+    tv->tv_sec++;
+  }
+  return tv;
 }
 
 /*
- * compares <tv1> and <tv2> modulo 1ms: returns 0 if equal, -1 if tv1 < tv2, 1 if tv1 > tv2
- * Must not be used when either argument is eternity. Use tv_ms_cmp2() for that.
+ * compares <tv1> and <tv2> modulo 1ms: returns 0 if equal, -1 if tv1 < tv2, 1
+ * if tv1 > tv2 Must not be used when either argument is eternity. Use
+ * tv_ms_cmp2() for that.
  */
-int _tv_ms_cmp(const struct timeval *tv1, const struct timeval *tv2)
-{
-	return __tv_ms_cmp(tv1, tv2);
+int _tv_ms_cmp(const struct timeval *tv1, const struct timeval *tv2) {
+  return __tv_ms_cmp(tv1, tv2);
 }
 
 /*
- * compares <tv1> and <tv2> modulo 1 ms: returns 0 if equal, -1 if tv1 < tv2, 1 if tv1 > tv2,
- * assuming that TV_ETERNITY is greater than everything.
+ * compares <tv1> and <tv2> modulo 1 ms: returns 0 if equal, -1 if tv1 < tv2, 1
+ * if tv1 > tv2, assuming that TV_ETERNITY is greater than everything.
  */
-int _tv_ms_cmp2(const struct timeval *tv1, const struct timeval *tv2)
-{
-	return __tv_ms_cmp2(tv1, tv2);
+int _tv_ms_cmp2(const struct timeval *tv1, const struct timeval *tv2) {
+  return __tv_ms_cmp2(tv1, tv2);
 }
 
 /*
- * compares <tv1> and <tv2> modulo 1 ms: returns 1 if tv1 <= tv2, 0 if tv1 > tv2,
- * assuming that TV_ETERNITY is greater than everything. Returns 0 if tv1 is
- * TV_ETERNITY, and always assumes that tv2 != TV_ETERNITY. Designed to replace
- * occurrences of (tv_ms_cmp2(tv,now) <= 0).
+ * compares <tv1> and <tv2> modulo 1 ms: returns 1 if tv1 <= tv2, 0 if tv1 >
+ * tv2, assuming that TV_ETERNITY is greater than everything. Returns 0 if tv1
+ * is TV_ETERNITY, and always assumes that tv2 != TV_ETERNITY. Designed to
+ * replace occurrences of (tv_ms_cmp2(tv,now) <= 0).
  */
-int _tv_ms_le2(const struct timeval *tv1, const struct timeval *tv2)
-{
-	return __tv_ms_le2(tv1, tv2);
+int _tv_ms_le2(const struct timeval *tv1, const struct timeval *tv2) {
+  return __tv_ms_le2(tv1, tv2);
 }
 
 /*
@@ -81,9 +86,9 @@ int _tv_ms_le2(const struct timeval *tv1, const struct timeval *tv2)
  * if tv2 is passed, 0 is returned.
  * Must not be used when either argument is eternity.
  */
-unsigned long _tv_ms_remain(const struct timeval *tv1, const struct timeval *tv2)
-{
-	return __tv_ms_remain(tv1, tv2);
+unsigned long _tv_ms_remain(const struct timeval *tv1,
+                            const struct timeval *tv2) {
+  return __tv_ms_remain(tv1, tv2);
 }
 
 /*
@@ -91,47 +96,47 @@ unsigned long _tv_ms_remain(const struct timeval *tv1, const struct timeval *tv2
  * if tv2 is passed, 0 is returned.
  * Returns TIME_ETERNITY if tv2 is eternity.
  */
-unsigned long _tv_ms_remain2(const struct timeval *tv1, const struct timeval *tv2)
-{
-	if (tv_iseternity(tv2))
-		return TIME_ETERNITY;
+unsigned long _tv_ms_remain2(const struct timeval *tv1,
+                             const struct timeval *tv2) {
+  if (tv_iseternity(tv2))
+    return TIME_ETERNITY;
 
-	return __tv_ms_remain(tv1, tv2);
+  return __tv_ms_remain(tv1, tv2);
 }
 
 /*
  * Returns the time in ms elapsed between tv1 and tv2, assuming that tv1<=tv2.
  * Must not be used when either argument is eternity.
  */
-unsigned long _tv_ms_elapsed(const struct timeval *tv1, const struct timeval *tv2)
-{
-	return __tv_ms_elapsed(tv1, tv2);
+unsigned long _tv_ms_elapsed(const struct timeval *tv1,
+                             const struct timeval *tv2) {
+  return __tv_ms_elapsed(tv1, tv2);
 }
 
 /*
  * adds <inc> to <from>, set the result to <tv> and returns a pointer <tv>
  */
-struct timeval *_tv_add(struct timeval *tv, const struct timeval *from, const struct timeval *inc)
-{
-	return __tv_add(tv, from, inc);
+struct timeval *_tv_add(struct timeval *tv, const struct timeval *from,
+                        const struct timeval *inc) {
+  return __tv_add(tv, from, inc);
 }
 
 /*
  * If <inc> is set, then add it to <from> and set the result to <tv>, then
  * return 1, otherwise return 0. It is meant to be used in if conditions.
  */
-int _tv_add_ifset(struct timeval *tv, const struct timeval *from, const struct timeval *inc)
-{
-	return __tv_add_ifset(tv, from, inc);
+int _tv_add_ifset(struct timeval *tv, const struct timeval *from,
+                  const struct timeval *inc) {
+  return __tv_add_ifset(tv, from, inc);
 }
 
 /*
  * Computes the remaining time between tv1=now and event=tv2. if tv2 is passed,
  * 0 is returned. The result is stored into tv.
  */
-struct timeval *_tv_remain(const struct timeval *tv1, const struct timeval *tv2, struct timeval *tv)
-{
-	return __tv_remain(tv1, tv2, tv);
+struct timeval *_tv_remain(const struct timeval *tv1, const struct timeval *tv2,
+                           struct timeval *tv) {
+  return __tv_remain(tv1, tv2, tv);
 }
 
 /*
@@ -139,21 +144,19 @@ struct timeval *_tv_remain(const struct timeval *tv1, const struct timeval *tv2,
  * 0 is returned. The result is stored into tv. Returns ETERNITY if tv2 is
  * eternity.
  */
-struct timeval *_tv_remain2(const struct timeval *tv1, const struct timeval *tv2, struct timeval *tv)
-{
-	return __tv_remain2(tv1, tv2, tv);
+struct timeval *_tv_remain2(const struct timeval *tv1,
+                            const struct timeval *tv2, struct timeval *tv) {
+  return __tv_remain2(tv1, tv2, tv);
 }
 
 /* tv_isle: compares <tv1> and <tv2> : returns 1 if tv1 <= tv2, otherwise 0 */
-int _tv_isle(const struct timeval *tv1, const struct timeval *tv2)
-{
-	return __tv_isle(tv1, tv2);
+int _tv_isle(const struct timeval *tv1, const struct timeval *tv2) {
+  return __tv_isle(tv1, tv2);
 }
 
 /* tv_isgt: compares <tv1> and <tv2> : returns 1 if tv1 > tv2, otherwise 0 */
-int _tv_isgt(const struct timeval *tv1, const struct timeval *tv2)
-{
-	return __tv_isgt(tv1, tv2);
+int _tv_isgt(const struct timeval *tv1, const struct timeval *tv2) {
+  return __tv_isgt(tv1, tv2);
 }
 
 /* tv_update_date: sets <date> to system time, and sets <now> to something as
@@ -173,94 +176,95 @@ int _tv_isgt(const struct timeval *tv1, const struct timeval *tv2)
  * microsecond adjustment. We cannot use a timeval for this since it's never
  * clearly specified whether a timeval may hold negative values or not.
  */
-void tv_update_date(int max_wait, int interrupted)
-{
-	struct timeval adjusted, deadline, tmp_now, tmp_adj;
-	unsigned int   curr_sec_ms;     /* millisecond of current second (0..999) */
-	unsigned long long old_now;
-	unsigned long long new_now;
+void tv_update_date(int max_wait, int interrupted) {
+  struct timeval adjusted, deadline, tmp_now, tmp_adj;
+  unsigned int curr_sec_ms; /* millisecond of current second (0..999) */
+  unsigned long long old_now;
+  unsigned long long new_now;
 
-	gettimeofday(&date, NULL);
-	if (unlikely(max_wait < 0)) {
-		tv_zero(&tv_offset);
-		adjusted = date;
-		after_poll = date;
-		samp_time = idle_time = 0;
-		ti->idle_pct = 100;
-		old_now = global_now;
-		if (!old_now) { // never set
-			new_now = (((unsigned long long)adjusted.tv_sec) << 32) + (unsigned int)adjusted.tv_usec;
-			_HA_ATOMIC_CAS(&global_now, &old_now, new_now);
-		}
-		goto to_ms;
-	}
+  gettimeofday(&date, NULL);
+  if (unlikely(max_wait < 0)) {
+    tv_zero(&tv_offset);
+    adjusted = date;
+    after_poll = date;
+    samp_time = idle_time = 0;
+    ti->idle_pct = 100;
+    old_now = global_now;
+    if (!old_now) { // never set
+      new_now = (((unsigned long long)adjusted.tv_sec) << 32) +
+                (unsigned int)adjusted.tv_usec;
+      _HA_ATOMIC_CAS(&global_now, &old_now, new_now);
+    }
+    goto to_ms;
+  }
 
-	__tv_add(&adjusted, &date, &tv_offset);
+  __tv_add(&adjusted, &date, &tv_offset);
 
-	/* compute the minimum and maximum local date we may have reached based
-	 * on our past date and the associated timeout.
-	 */
-	_tv_ms_add(&deadline, &now, max_wait + MAX_DELAY_MS);
+  /* compute the minimum and maximum local date we may have reached based
+   * on our past date and the associated timeout.
+   */
+  _tv_ms_add(&deadline, &now, max_wait + MAX_DELAY_MS);
 
-	if (unlikely(__tv_islt(&adjusted, &now) || __tv_islt(&deadline, &adjusted))) {
-		/* Large jump. If the poll was interrupted, we consider that the
-		 * date has not changed (immediate wake-up), otherwise we add
-		 * the poll time-out to the previous date. The new offset is
-		 * recomputed.
-		 */
-		_tv_ms_add(&adjusted, &now, interrupted ? 0 : max_wait);
-	}
+  if (unlikely(__tv_islt(&adjusted, &now) || __tv_islt(&deadline, &adjusted))) {
+    /* Large jump. If the poll was interrupted, we consider that the
+     * date has not changed (immediate wake-up), otherwise we add
+     * the poll time-out to the previous date. The new offset is
+     * recomputed.
+     */
+    _tv_ms_add(&adjusted, &now, interrupted ? 0 : max_wait);
+  }
 
-	/* now that we have bounded the local time, let's check if it's
-	 * realistic regarding the global date, which only moves forward,
-	 * otherwise catch up.
-	 */
-	old_now = global_now;
+  /* now that we have bounded the local time, let's check if it's
+   * realistic regarding the global date, which only moves forward,
+   * otherwise catch up.
+   */
+  old_now = global_now;
 
-	do {
-		tmp_now.tv_sec  = (unsigned int)(old_now >> 32);
-		tmp_now.tv_usec = old_now & 0xFFFFFFFFU;
-		tmp_adj = adjusted;
+  do {
+    tmp_now.tv_sec = (unsigned int)(old_now >> 32);
+    tmp_now.tv_usec = old_now & 0xFFFFFFFFU;
+    tmp_adj = adjusted;
 
-		if (__tv_islt(&tmp_adj, &tmp_now))
-			tmp_adj = tmp_now;
+    if (__tv_islt(&tmp_adj, &tmp_now))
+      tmp_adj = tmp_now;
 
-		/* now <adjusted> is expected to be the most accurate date,
-		 * equal to <global_now> or newer.
-		 */
-		new_now = (((unsigned long long)tmp_adj.tv_sec) << 32) + (unsigned int)tmp_adj.tv_usec;
+    /* now <adjusted> is expected to be the most accurate date,
+     * equal to <global_now> or newer.
+     */
+    new_now = (((unsigned long long)tmp_adj.tv_sec) << 32) +
+              (unsigned int)tmp_adj.tv_usec;
 
-		/* let's try to update the global <now> or loop again */
-	} while (!_HA_ATOMIC_CAS(&global_now, &old_now, new_now));
+    /* let's try to update the global <now> or loop again */
+  } while (!_HA_ATOMIC_CAS(&global_now, &old_now, new_now));
 
-	adjusted = tmp_adj;
+  adjusted = tmp_adj;
 
-	/* the new global date when we looked was old_now, and the new one is
-	 * new_now == adjusted. We can recompute our local offset.
-	 */
-	tv_offset.tv_sec  = adjusted.tv_sec  - date.tv_sec;
-	tv_offset.tv_usec = adjusted.tv_usec - date.tv_usec;
-	if (tv_offset.tv_usec < 0) {
-		tv_offset.tv_usec += 1000000;
-		tv_offset.tv_sec--;
-	}
+  /* the new global date when we looked was old_now, and the new one is
+   * new_now == adjusted. We can recompute our local offset.
+   */
+  tv_offset.tv_sec = adjusted.tv_sec - date.tv_sec;
+  tv_offset.tv_usec = adjusted.tv_usec - date.tv_usec;
+  if (tv_offset.tv_usec < 0) {
+    tv_offset.tv_usec += 1000000;
+    tv_offset.tv_sec--;
+  }
 
- to_ms:
-	now = adjusted;
-	curr_sec_ms = now.tv_usec / 1000;            /* ms of current second */
+to_ms:
+  now = adjusted;
+  curr_sec_ms = now.tv_usec / 1000; /* ms of current second */
 
-	/* For frequency counters, we'll need to know the ratio of the previous
-	 * value to add to current value depending on the current millisecond.
-	 * The principle is that during the first millisecond, we use 999/1000
-	 * of the past value and that during the last millisecond we use 0/1000
-	 * of the past value. In summary, we only use the past value during the
-	 * first 999 ms of a second, and the last ms is used to complete the
-	 * current measure. The value is scaled to (2^32-1) so that a simple
-	 * multiply followed by a shift gives us the final value.
-	 */
-	ms_left_scaled = (999U - curr_sec_ms) * 4294967U;
-	now_ms = now.tv_sec * 1000 + curr_sec_ms;
-	return;
+  /* For frequency counters, we'll need to know the ratio of the previous
+   * value to add to current value depending on the current millisecond.
+   * The principle is that during the first millisecond, we use 999/1000
+   * of the past value and that during the last millisecond we use 0/1000
+   * of the past value. In summary, we only use the past value during the
+   * first 999 ms of a second, and the last ms is used to complete the
+   * current measure. The value is scaled to (2^32-1) so that a simple
+   * multiply followed by a shift gives us the final value.
+   */
+  ms_left_scaled = (999U - curr_sec_ms) * 4294967U;
+  now_ms = now.tv_sec * 1000 + curr_sec_ms;
+  return;
 }
 
 /* returns the current date as returned by gettimeofday() in ISO+microsecond
@@ -271,34 +275,36 @@ void tv_update_date(int max_wait, int interrupted)
  * zero-terminated, thus it will always fit into a 34 bytes buffer.
  * This also always include the local timezone (in +/-HH:mm format) .
  */
-char *timeofday_as_iso_us(int pad)
-{
-	struct timeval new_date;
-	struct tm tm;
-	const char *offset;
-	char c;
-	gettimeofday(&new_date, NULL);
-	if (new_date.tv_sec != iso_time_sec || !new_date.tv_sec) {
-		get_localtime(new_date.tv_sec, &tm);
-		offset = get_gmt_offset(new_date.tv_sec, &tm);
-		if (unlikely(strftime(iso_time_str, sizeof(iso_time_str), "%Y-%m-%dT%H:%M:%S.000000+00:00", &tm) != 32))
-			strcpy(iso_time_str, "YYYY-mm-ddTHH:MM:SS.000000-00:00"); // make the failure visible but respect format.
-		iso_time_str[26] = offset[0];
-		iso_time_str[27] = offset[1];
-		iso_time_str[28] = offset[2];
-		iso_time_str[30] = offset[3];
-		iso_time_str[31] = offset[4];
-		iso_time_sec = new_date.tv_sec;
-	}
-	/* utoa_pad adds a trailing 0 so we save the char for restore */
-	c = iso_time_str[26];
-	utoa_pad(new_date.tv_usec, iso_time_str + 20, 7);
-	iso_time_str[26] = c;
-	if (pad) {
-		iso_time_str[32] = ' ';
-		iso_time_str[33] = 0;
-	}
-	return iso_time_str;
+char *timeofday_as_iso_us(int pad) {
+  struct timeval new_date;
+  struct tm tm;
+  const char *offset;
+  char c;
+  gettimeofday(&new_date, NULL);
+  if (new_date.tv_sec != iso_time_sec || !new_date.tv_sec) {
+    get_localtime(new_date.tv_sec, &tm);
+    offset = get_gmt_offset(new_date.tv_sec, &tm);
+    if (unlikely(strftime(iso_time_str, sizeof(iso_time_str),
+                          "%Y-%m-%dT%H:%M:%S.000000+00:00", &tm) != 32))
+      strcpy(iso_time_str,
+             "YYYY-mm-ddTHH:MM:SS.000000-00:00"); // make the failure visible
+                                                  // but respect format.
+    iso_time_str[26] = offset[0];
+    iso_time_str[27] = offset[1];
+    iso_time_str[28] = offset[2];
+    iso_time_str[30] = offset[3];
+    iso_time_str[31] = offset[4];
+    iso_time_sec = new_date.tv_sec;
+  }
+  /* utoa_pad adds a trailing 0 so we save the char for restore */
+  c = iso_time_str[26];
+  utoa_pad(new_date.tv_usec, iso_time_str + 20, 7);
+  iso_time_str[26] = c;
+  if (pad) {
+    iso_time_str[32] = ' ';
+    iso_time_str[33] = 0;
+  }
+  return iso_time_str;
 }
 
 /*

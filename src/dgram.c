@@ -10,21 +10,20 @@
  *
  */
 
-#include <haproxy/fd.h>
 #include <haproxy/dgram.h>
+#include <haproxy/fd.h>
 
 /* datagram handler callback */
-void dgram_fd_handler(int fd)
-{
-	struct dgram_conn *dgram = fdtab[fd].owner;
+void dgram_fd_handler(int fd) {
+  struct dgram_conn *dgram = fdtab[fd].owner;
 
-	if (unlikely(!dgram))
-		return;
+  if (unlikely(!dgram))
+    return;
 
-	if (fd_recv_ready(fd))
-		dgram->data->recv(dgram);
-	if (fd_send_ready(fd))
-		dgram->data->send(dgram);
+  if (fd_recv_ready(fd))
+    dgram->data->recv(dgram);
+  if (fd_send_ready(fd))
+    dgram->data->send(dgram);
 
-	return;
+  return;
 }

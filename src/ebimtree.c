@@ -26,10 +26,9 @@
 /* Find the first occurrence of a key of <len> bytes in the tree <root>.
  * If none can be found, return NULL.
  */
-struct ebpt_node *
-ebim_lookup(struct eb_root *root, const void *x, unsigned int len)
-{
-	return __ebim_lookup(root, x, len);
+struct ebpt_node *ebim_lookup(struct eb_root *root, const void *x,
+                              unsigned int len) {
+  return __ebim_lookup(root, x, len);
 }
 
 /* Insert ebpt_node <new> into subtree starting at node root <root>.
@@ -37,8 +36,7 @@ ebim_lookup(struct eb_root *root, const void *x, unsigned int len)
  * If root->b[EB_RGHT]==1, the tree may only contain unique keys. The
  * len is specified in bytes.
  */
-struct ebpt_node *
-ebim_insert(struct eb_root *root, struct ebpt_node *new, unsigned int len)
-{
-	return __ebim_insert(root, new, len);
+struct ebpt_node *ebim_insert(struct eb_root *root, struct ebpt_node *new,
+                              unsigned int len) {
+  return __ebim_insert(root, new, len);
 }
